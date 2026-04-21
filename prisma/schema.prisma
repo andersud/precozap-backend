@@ -25,7 +25,7 @@ model Product {
   prices       MarketplacePrice[]
   priceHistory PriceHistory[]
 
-  // 🔥 INDEXES (performance real)
+  // 🔥 INDEXES (performance)
   @@index([category])
   @@index([bestPrice])
   @@index([createdAt])
@@ -37,13 +37,12 @@ model MarketplacePrice {
   marketplace   String
   price         Float
 
-  // 🔥 CAMPOS AVANÇADOS (nível produto real)
-  originalPrice Float?     // preço antes do desconto
-  discount      Float?     // % desconto
-  shipping      String?    // "Grátis", "R$ 20"
-  inStock       Boolean    @default(true)
-  installments  String?    // "10x sem juros"
-  url           String?    // 🔥 link real da loja
+  originalPrice Float?
+  discount      Float?
+  shipping      String?
+  inStock       Boolean   @default(true)
+  installments  String?
+  url           String?
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -51,13 +50,11 @@ model MarketplacePrice {
   // 🔥 RELAÇÃO
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  // 🔥 INDEXES (busca rápida)
+  // 🔥 INDEXES OTIMIZADOS
   @@index([productId])
   @@index([marketplace])
   @@index([price])
-
-  // 🔥 OPCIONAL (evita duplicar mesma loja com mesmo preço no mesmo momento)
-  @@index([productId, marketplace, price])
+  @@index([productId, marketplace])
 }
 
 model PriceHistory {
@@ -66,7 +63,6 @@ model PriceHistory {
   price       Float
   date        DateTime @default(now())
 
-  // 🔥 origem do preço (importante pra IA futura)
   marketplace String
 
   createdAt   DateTime @default(now())
@@ -78,4 +74,5 @@ model PriceHistory {
   @@index([productId])
   @@index([date])
   @@index([marketplace])
+  @@index([productId, date])
 }

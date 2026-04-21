@@ -3,22 +3,29 @@
     "target": "ES2022",
     "module": "commonjs",
     "lib": ["ES2022"],
+
     "outDir": "dist",
     "rootDir": "src",
+
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
+
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
+
+    // 🔥 ESSENCIAL PRA FUNCIONAR OS ALIASES
+    "baseUrl": ".",
+
     "paths": {
-      "@modules/*": ["./src/modules/*"],
-      "@shared/*": ["./src/shared/*"],
-      "@infra/*": ["./src/infra/*"]
+      "@modules/*": ["src/modules/*"],
+      "@shared/*": ["src/shared/*"],
+      "@infra/*": ["src/infra/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }
