@@ -1,6 +1,42 @@
-// ─── Repository ──────────────────────────────────────────────────────────────
-type Favorite = any;
-const db = { favorites: new Map() };
+import { randomUUID } from "crypto";
+import { Router, Response } from "express";
+
+import { productRepository } from "../products/product.repository";
+import { AuthenticatedRequest } from "../../shared/middlewares/auth";
+import { sendSuccess, sendError, sendServerError } from "../../shared/utils/response";
+
+/* ───────────────────────────────────────────────────────────────
+   TYPES
+─────────────────────────────────────────────────────────────── */
+
+export interface Favorite {
+  id: string;
+  userId: string;
+  productId: string;
+  priceAlert?: number;
+  createdAt: string;
+}
+
+export interface Product {
+  id: string;
+  name?: string;
+}
+
+export interface FavoriteWithProduct extends Favorite {
+  product: Product | null;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   DATABASE (IN MEMORY)
+─────────────────────────────────────────────────────────────── */
+
+const db = {
+  favorites: new Map<string, Favorite>(),
+};
+
+/* ───────────────────────────────────────────────────────────────
+   REPOSITORY
+─────────────────────────────────────────────────────────────── */
 
 export class FavoriteRepository {
   findByUser(userId: string): Favorite[] {
@@ -29,39 +65,48 @@ export class FavoriteRepository {
   updatePriceAlert(id: string, priceAlert: number): Favorite | null {
     const fav = db.favorites.get(id);
     if (!fav) return null;
+
     fav.priceAlert = priceAlert;
     db.favorites.set(id, fav);
+
     return fav;
   }
 }
 
 export const favoriteRepository = new FavoriteRepository();
 
-// ─── Service ─────────────────────────────────────────────────────────────────
-import { productRepository } from "../products/product.repository";
-import { Product } from "../../shared/database/inMemoryDb";
-
-export interface FavoriteWithProduct extends Favorite {
-  product: Product | null;
-}
+/* ───────────────────────────────────────────────────────────────
+   SERVICE
+─────────────────────────────────────────────────────────────── */
 
 export class FavoriteService {
-  getUserFavorites(userId: string): FavoriteWithProduct[] {
+  async getUserFavorites(userId: string): Promise<FavoriteWithProduct[]> {
     const favorites = favoriteRepository.findByUser(userId);
-    return favorites.map((f) => ({
-      ...f,
-      product: productRepository.findById(f.productId),
-    }));
+
+    return Promise.all(
+      favorites.map(async (f) => ({
+        ...f,
+        product: await productRepository.findById(f.productId),
+      }))
+    );
   }
 
-  addFavorite(userId: string, productId: string, priceAlert?: number): FavoriteWithProduct {
+  async addFavorite(
+    userId: string,
+    productId: string,
+    priceAlert?: number
+  ): Promise<FavoriteWithProduct> {
     const existing = favoriteRepository.findByUserAndProduct(userId, productId);
+
     if (existing) {
-      return { ...existing, product: productRepository.findById(productId) };
+      return {
+        ...existing,
+        product: await productRepository.findById(productId),
+      };
     }
 
     const favorite: Favorite = {
-      id: db.generateId(),
+      id: randomUUID(),
       userId,
       productId,
       priceAlert,
@@ -69,65 +114,78 @@ export class FavoriteService {
     };
 
     favoriteRepository.save(favorite);
-    return { ...favorite, product: productRepository.findById(productId) };
+
+    return {
+      ...favorite,
+      product: await productRepository.findById(productId),
+    };
   }
 
   removeFavorite(userId: string, productId: string): boolean {
     const existing = favoriteRepository.findByUserAndProduct(userId, productId);
     if (!existing) return false;
+
     return favoriteRepository.delete(existing.id);
   }
 
-  setPriceAlert(userId: string, productId: string, priceAlert: number): Favorite | null {
+  setPriceAlert(
+    userId: string,
+    productId: string,
+    priceAlert: number
+  ): Favorite | null {
     const existing = favoriteRepository.findByUserAndProduct(userId, productId);
     if (!existing) return null;
+
     return favoriteRepository.updatePriceAlert(existing.id, priceAlert);
   }
 
   isFavorite(userId: string, productId: string): boolean {
-    return Boolean(favoriteRepository.findByUserAndProduct(userId, productId));
+    return Boolean(
+      favoriteRepository.findByUserAndProduct(userId, productId)
+    );
   }
 }
 
 export const favoriteService = new FavoriteService();
 
-// ─── Controller ──────────────────────────────────────────────────────────────
-import { Response } from "express";
-import { AuthenticatedRequest } from "../../shared/middlewares/auth";
-import { sendSuccess, sendError, sendServerError } from "../../shared/utils/response";
+/* ───────────────────────────────────────────────────────────────
+   CONTROLLER
+─────────────────────────────────────────────────────────────── */
 
 export class FavoriteController {
-  getAll(req: AuthenticatedRequest, res: Response): void {
+  async getAll(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.userId;
-      const favorites = favoriteService.getUserFavorites(userId);
+
+      const favorites = await favoriteService.getUserFavorites(userId);
+
       sendSuccess(res, favorites, { total: favorites.length });
     } catch (error) {
       sendServerError(res, error);
     }
   }
 
-  add(req: AuthenticatedRequest, res: Response): void {
+  async add(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
       const userId = req.user!.userId;
       const { productId, priceAlert } = req.body;
 
       if (!productId) {
-        sendError(res, "productId is required");
-        return;
+        return sendError(res, "productId is required");
       }
 
-      const product = productRepository.findById(productId);
+      const product = await productRepository.findById(productId);
+
       if (!product) {
-        sendError(res, "Product not found", 404);
-        return;
+        return sendError(res, "Product not found", 404);
       }
 
-      const favorite = favoriteService.addFavorite(
+      const favorite = await favoriteService.addFavorite(
         userId,
         productId,
-        priceAlert ? parseFloat(priceAlert) : undefined
+        priceAlert ? Number(priceAlert) : undefined
       );
+
       sendSuccess(res, favorite, undefined, 201);
     } catch (error) {
       sendServerError(res, error);
@@ -138,11 +196,13 @@ export class FavoriteController {
     try {
       const userId = req.user!.userId;
       const { productId } = req.params;
+
       const removed = favoriteService.removeFavorite(userId, productId);
+
       if (!removed) {
-        sendError(res, "Favorite not found", 404);
-        return;
+        return sendError(res, "Favorite not found", 404);
       }
+
       sendSuccess(res, { removed: true });
     } catch (error) {
       sendServerError(res, error);
@@ -155,16 +215,20 @@ export class FavoriteController {
       const { productId } = req.params;
       const { priceAlert } = req.body;
 
-      if (!priceAlert || isNaN(parseFloat(priceAlert))) {
-        sendError(res, "Valid priceAlert is required");
-        return;
+      if (!priceAlert || isNaN(Number(priceAlert))) {
+        return sendError(res, "Valid priceAlert is required");
       }
 
-      const updated = favoriteService.setPriceAlert(userId, productId, parseFloat(priceAlert));
+      const updated = favoriteService.setPriceAlert(
+        userId,
+        productId,
+        Number(priceAlert)
+      );
+
       if (!updated) {
-        sendError(res, "Favorite not found", 404);
-        return;
+        return sendError(res, "Favorite not found", 404);
       }
+
       sendSuccess(res, updated);
     } catch (error) {
       sendServerError(res, error);
@@ -174,8 +238,10 @@ export class FavoriteController {
 
 export const favoriteController = new FavoriteController();
 
-// ─── Routes ──────────────────────────────────────────────────────────────────
-import { Router } from "express";
+/* ───────────────────────────────────────────────────────────────
+   ROUTES
+─────────────────────────────────────────────────────────────── */
+
 import { requireAuth } from "../../shared/middlewares/auth";
 
 const favoriteRouter = Router();

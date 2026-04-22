@@ -7,6 +7,18 @@
     "outDir": "dist",
     "rootDir": "src",
 
+    // ✅ NECESSÁRIO para aliases
+    "baseUrl": ".",
+
+    "paths": {
+      "@modules/*": ["src/modules/*"],
+      "@shared/*": ["src/shared/*"],
+      "@infra/*": ["src/infra/*"]
+    },
+
+    // ✅ Corrige aviso do TypeScript (versão compatível)
+    "ignoreDeprecations": "5.0",
+
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -15,17 +27,8 @@
 
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
-
-    // 🔥 ESSENCIAL PRA FUNCIONAR OS ALIASES
-    "baseUrl": ".",
-
-    "paths": {
-      "@modules/*": ["src/modules/*"],
-      "@shared/*": ["src/shared/*"],
-      "@infra/*": ["src/infra/*"]
-    }
+    "sourceMap": true
   },
-  "include": ["src"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

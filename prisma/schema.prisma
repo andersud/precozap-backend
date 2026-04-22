@@ -7,6 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ───────────────────────── PRODUCT ─────────────────────────
+
 model Product {
   id           String   @id @default(uuid())
   name         String
@@ -16,28 +18,30 @@ model Product {
 
   rating       Float    @default(0)
   reviews      Int      @default(0)
-  bestPrice    Float    @default(0)
+
+  bestPrice    Decimal  @default(0)
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // 🔥 RELAÇÕES
   prices       MarketplacePrice[]
   priceHistory PriceHistory[]
 
-  // 🔥 INDEXES (performance)
   @@index([category])
   @@index([bestPrice])
   @@index([createdAt])
 }
 
+// ───────────────────── MARKETPLACE PRICE ─────────────────────
+
 model MarketplacePrice {
   id            String   @id @default(uuid())
   productId     String
-  marketplace   String
-  price         Float
 
-  originalPrice Float?
+  marketplace   String
+  price         Decimal
+
+  originalPrice Decimal?
   discount      Float?
   shipping      String?
   inStock       Boolean   @default(true)
@@ -47,32 +51,31 @@ model MarketplacePrice {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  // 🔥 RELAÇÃO
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  // 🔥 INDEXES OTIMIZADOS
   @@index([productId])
   @@index([marketplace])
   @@index([price])
-  @@index([productId, marketplace])
+
+  @@unique([productId, marketplace])
 }
+
+// ───────────────────── PRICE HISTORY ─────────────────────
 
 model PriceHistory {
   id          String   @id @default(uuid())
   productId   String
-  price       Float
-  date        DateTime @default(now())
+
+  price       Decimal
+  recordedAt  DateTime @default(now())
 
   marketplace String
 
-  createdAt   DateTime @default(now())
-
-  // 🔥 RELAÇÃO
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  // 🔥 INDEXES
   @@index([productId])
-  @@index([date])
+  @@index([recordedAt])
   @@index([marketplace])
-  @@index([productId, date])
+
+  @@unique([productId, marketplace, recordedAt])
 }

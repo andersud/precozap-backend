@@ -1,8 +1,21 @@
 // ─── Service ─────────────────────────────────────────────────────────────────
-import { AIProvider, AIQueryInput, AIQueryOutput, MockAIProvider, AnthropicAIProvider } from "../../infra/providers/aiProviders";
+import {
+  AIProvider,
+  AIQueryInput,
+  AIQueryOutput,
+  MockAIProvider,
+  AnthropicAIProvider,
+} from "../../infra/providers/aiProviders";
+
 import { productRepository } from "../products/product.repository";
 import { env } from "../../shared/config/env";
 import { logger } from "../../shared/utils/logger";
+
+import { Product } from "@prisma/client";
+
+type AIResponse = AIQueryOutput & {
+  relatedProducts: Product[];
+};
 
 class AIService {
   private provider: AIProvider;
@@ -13,12 +26,13 @@ class AIService {
       logger.info("🤖 AI Provider: Anthropic Claude");
     } else {
       this.provider = new MockAIProvider();
-      logger.info("🤖 AI Provider: Mock (set ANTHROPIC_API_KEY for real AI)");
+      logger.info("🤖 AI Provider: Mock");
     }
   }
 
-  async query(input: AIQueryInput): Promise<AIQueryOutput & { relatedProducts: ReturnType<typeof productRepository.findById>[] }> {
-    const allProducts = productRepository.findAll();
+  async query(input: AIQueryInput): Promise<AIResponse> {
+    // 🔥 CORREÇÃO: await obrigatório
+    const allProducts = await productRepository.findAll();
 
     const enrichedInput: AIQueryInput = {
       ...input,
@@ -28,32 +42,50 @@ class AIService {
           id: p.id,
           name: p.name,
           category: p.category,
-          brand: p.brand,
-          bestPrice: p.bestPrice,
-          bestMarketplace: p.bestMarketplace,
+          bestPrice: Number(p.bestPrice), // 🔥 Prisma Decimal → number
           rating: p.rating,
-          tags: p.tags,
         })),
       },
     };
 
     const result = await this.provider.query(enrichedInput);
 
-    // Search for related products based on AI response
-    let relatedProducts = [];
-    if (result.productIds && result.productIds.length > 0) {
-      relatedProducts = result.productIds
-        .map((id) => productRepository.findById(id))
-        .filter(Boolean);
-    } else if (result.intent && result.intent !== "general") {
-      relatedProducts = productRepository
-        .search(result.intent)
-        .slice(0, 3)
-        .map((p) => productRepository.findById(p.id))
-        .filter(Boolean);
+    let relatedProducts: Product[] = [];
+
+    // 🔥 CASO 1: IA retornou IDs
+    if (result.productIds?.length) {
+      const products = await Promise.all(
+        result.productIds.map((id) =>
+          productRepository.findById(id)
+        )
+      );
+
+      relatedProducts = products.filter(
+        (p): p is Product => p !== null
+      );
     }
 
-    return { ...result, relatedProducts };
+    // 🔥 CASO 2: usar intenção (busca)
+    else if (result.intent && result.intent !== "general") {
+      const productsByIntent = await productRepository.search(result.intent);
+
+      const topProducts = productsByIntent.slice(0, 3);
+
+      const fullProducts = await Promise.all(
+        topProducts.map((p) =>
+          productRepository.findById(p.id)
+        )
+      );
+
+      relatedProducts = fullProducts.filter(
+        (p): p is Product => p !== null
+      );
+    }
+
+    return {
+      ...result,
+      relatedProducts,
+    };
   }
 
   getProviderInfo(): { name: string; isReal: boolean } {
@@ -68,7 +100,11 @@ export const aiService = new AIService();
 
 // ─── Controller ──────────────────────────────────────────────────────────────
 import { Request, Response } from "express";
-import { sendSuccess, sendError, sendServerError } from "../../shared/utils/response";
+import {
+  sendSuccess,
+  sendError,
+  sendServerError,
+} from "../../shared/utils/response";
 
 export class AIController {
   async query(req: Request, res: Response): Promise<void> {
@@ -113,7 +149,10 @@ const aiRouter = Router();
 const aiRateLimit = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
-  message: { success: false, error: "Too many AI requests, please try again in a minute" },
+  message: {
+    success: false,
+    error: "Too many AI requests, please try again in a minute",
+  },
   standardHeaders: true,
   legacyHeaders: false,
 });

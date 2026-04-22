@@ -32,7 +32,6 @@ export interface AddPriceDTO {
 }
 
 export const productRepository = {
-
   // 🔧 FILTROS
   buildWhere(filters?: ProductFilters): Prisma.ProductWhereInput {
     const where: Prisma.ProductWhereInput = {};
@@ -48,11 +47,11 @@ export const productRepository = {
       where.bestPrice = {};
 
       if (typeof filters.minPrice === "number") {
-        where.bestPrice.gte = filters.minPrice;
+        where.bestPrice.gte = new Prisma.Decimal(filters.minPrice);
       }
 
       if (typeof filters.maxPrice === "number") {
-        where.bestPrice.lte = filters.maxPrice;
+        where.bestPrice.lte = new Prisma.Decimal(filters.maxPrice);
       }
     }
 
@@ -87,7 +86,7 @@ export const productRepository = {
     });
   },
 
-  // 🔍 POR ID COM RELAÇÕES (🔥 USADO NO FRONT)
+  // 🔍 POR ID COM RELAÇÕES
   async findByIdWithRelations(id: string) {
     if (!id) return null;
 
@@ -98,7 +97,7 @@ export const productRepository = {
           orderBy: { price: "asc" },
         },
         priceHistory: {
-          orderBy: { date: "desc" },
+          orderBy: { recordedAt: "desc" }, // ✅ CORREÇÃO FINAL
           take: 30,
         },
       },
@@ -160,7 +159,7 @@ export const productRepository = {
         description: data.description?.trim() ?? "",
         rating: data.rating ?? 0,
         reviews: data.reviews ?? 0,
-        bestPrice: data.bestPrice ?? 0,
+        bestPrice: new Prisma.Decimal(data.bestPrice ?? 0),
       },
     });
   },
@@ -175,7 +174,7 @@ export const productRepository = {
     return categories.map((c) => c.category);
   },
 
-  // 💰 ADD PRICE (🔥 VERSÃO FINAL PROFISSIONAL)
+  // 💰 ADD PRICE (PROFISSIONAL)
   async addPrice(data: AddPriceDTO) {
     const {
       productId,
@@ -213,13 +212,12 @@ export const productRepository = {
     }
 
     return prisma.$transaction(async (tx) => {
-
-      // 🔥 EVITA DUPLICADO (MESMO PREÇO + MARKETPLACE)
+      // 🔥 evita duplicado
       const existing = await tx.marketplacePrice.findFirst({
         where: {
           productId,
           marketplace: cleanMarketplace,
-          price: parsedPrice,
+          price: new Prisma.Decimal(parsedPrice),
         },
       });
 
@@ -231,7 +229,7 @@ export const productRepository = {
         data: {
           productId,
           marketplace: cleanMarketplace,
-          price: parsedPrice,
+          price: new Prisma.Decimal(parsedPrice),
           url: cleanUrl,
           originalPrice: originalPrice ?? null,
           discount: discount ?? null,
@@ -241,25 +239,32 @@ export const productRepository = {
         },
       });
 
+      // 🔥 histórico correto
       await tx.priceHistory.create({
         data: {
           productId,
-          price: parsedPrice,
+          price: new Prisma.Decimal(parsedPrice),
           marketplace: cleanMarketplace,
+          recordedAt: new Date(), // ✅ IMPORTANTE
         },
       });
 
+      // 🔥 recalcula melhor preço
       const prices = await tx.marketplacePrice.findMany({
         where: { productId },
         select: { price: true },
       });
 
       if (prices.length > 0) {
-        const bestPrice = Math.min(...prices.map((p) => p.price));
+        const bestPrice = Math.min(
+          ...prices.map((p) => Number(p.price))
+        );
 
         await tx.product.update({
           where: { id: productId },
-          data: { bestPrice },
+          data: {
+            bestPrice: new Prisma.Decimal(bestPrice),
+          },
         });
       }
 
