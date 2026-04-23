@@ -1,4 +1,5 @@
 // ─── Provider Interface ───────────────────────────────────────────────────────
+import fetch from "node-fetch";
 
 export interface AIMessage {
   role: "user" | "assistant";

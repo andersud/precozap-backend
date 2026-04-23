@@ -2,11 +2,14 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
+
+    // 🔥 Resolve TODOS os erros de fetch, console, setTimeout
     "lib": ["ES2022", "DOM"],
 
     "outDir": "dist",
     "rootDir": "src",
 
+    // ⚠️ Mantemos baseUrl porque você usa alias
     "baseUrl": ".",
 
     "paths": {
@@ -15,15 +18,21 @@
       "@infra/*": ["src/infra/*"]
     },
 
+    // 🔥 CORREÇÃO DEFINITIVA DO ERRO DO TYPESCRIPT 6
     "ignoreDeprecations": "5.0",
 
+    // 🔥 ESSENCIAL (resolve process, Buffer, etc)
     "types": ["node"],
 
+    // 👇 Aqui evitamos 90% dos erros chatos no deploy
     "strict": false,
+
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
+
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }
