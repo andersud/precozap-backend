@@ -7,7 +7,6 @@
     "outDir": "dist",
     "rootDir": "src",
 
-    // 🔥 Mantém compatibilidade com aliases
     "baseUrl": ".",
 
     "paths": {
@@ -16,8 +15,8 @@
       "@infra/*": ["src/infra/*"]
     },
 
-    // 🔥 CORREÇÃO REAL DO ERRO
-    "ignoreDeprecations": "6.0",
+    // 🔥 CORREÇÃO AQUI (valor válido)
+    "ignoreDeprecations": "5.0",
 
     "strict": true,
     "esModuleInterop": true,
