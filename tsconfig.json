@@ -5,13 +5,6 @@
    
    "outDir": "dist", 
    "rootDir": "src",
-
-   "baseUrl": ".", 
-   "paths": { 
-    "@modules/*": ["src/modules/*"], 
-    "@shared/*": ["src/shared/*"],
-    "@infra/*": ["src/infra/*"] 
-  },
   
    "strict": true, 
    "esModuleInterop": true, 
