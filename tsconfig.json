@@ -7,7 +7,7 @@
     "outDir": "dist",
     "rootDir": "src",
 
-    // ✅ NECESSÁRIO para aliases
+    // 🔥 Mantém compatibilidade com aliases
     "baseUrl": ".",
 
     "paths": {
@@ -16,8 +16,8 @@
       "@infra/*": ["src/infra/*"]
     },
 
-    // ✅ Corrige aviso do TypeScript (versão compatível)
-    "ignoreDeprecations": "5.0",
+    // 🔥 CORREÇÃO REAL DO ERRO
+    "ignoreDeprecations": "6.0",
 
     "strict": true,
     "esModuleInterop": true,
