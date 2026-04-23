@@ -2,37 +2,30 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
-
-    // 🔥 Resolve TODOS os erros de fetch, console, setTimeout
     "lib": ["ES2022", "DOM"],
 
     "outDir": "dist",
     "rootDir": "src",
 
-    // ⚠️ Mantemos baseUrl porque você usa alias
-    "baseUrl": ".",
+    "baseUrl": "src",
 
     "paths": {
-      "@modules/*": ["src/modules/*"],
-      "@shared/*": ["src/shared/*"],
-      "@infra/*": ["src/infra/*"]
+      "@modules/*": ["modules/*"],
+      "@shared/*": ["shared/*"],
+      "@infra/*": ["infra/*"]
     },
 
-    // 🔥 CORREÇÃO DEFINITIVA DO ERRO DO TYPESCRIPT 6
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
 
-    // 🔥 ESSENCIAL (resolve process, Buffer, etc)
     "types": ["node"],
 
-    // 👇 Aqui evitamos 90% dos erros chatos no deploy
     "strict": false,
 
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "moduleResolution": "node"
   },
-
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }
