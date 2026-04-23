@@ -11,10 +11,10 @@
   },
 
   "scripts": {
-    "dev": "tsx watch src/infra/http/server.ts",
+    "dev": "tsx watch -r module-alias/register src/infra/http/server.ts",
     "build": "prisma generate && tsc",
-    "start": "node dist/infra/http/server.js",
-    "start:prod": "node dist/infra/http/server.js",
+    "start": "node -r module-alias/register dist/infra/http/server.js",
+    "start:prod": "node -r module-alias/register dist/infra/http/server.js",
     "lint": "eslint src --ext .ts"
   },
 
@@ -43,6 +43,7 @@
     "@types/uuid": "^10.0.0",
     "prisma": "^5.22.0",
     "tsx": "^4.16.2",
-    "typescript": "^5.5.3"
+
+    "typescript": "5.4.5"
   }
 }
