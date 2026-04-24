@@ -1,8 +1,16 @@
 import { randomUUID } from "crypto";
 import { Router, Request, Response } from "express";
 
-import { generateToken, AuthenticatedRequest } from "../../shared/middlewares/auth";
-import { sendSuccess, sendError, sendServerError } from "../../shared/utils/response";
+import {
+  generateToken,
+  AuthenticatedRequest,
+  requireAuth,
+} from "../../shared/middlewares/auth";
+import {
+  sendSuccess,
+  sendError,
+  sendServerError,
+} from "../../shared/utils/response";
 
 /* ───────────────────────────────────────────────────────────────
    TYPES
@@ -88,7 +96,7 @@ export class UserService {
     }
 
     const user: User = {
-      id: randomUUID(), // ✅ CORRIGIDO
+      id: randomUUID(),
       email,
       name: input.name.trim(),
       passwordHash: simpleHash(input.password),
@@ -97,7 +105,10 @@ export class UserService {
 
     userRepository.save(user);
 
-    const token = generateToken({ userId: user.id, email: user.email });
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+    });
 
     const { passwordHash: _, ...safeUser } = user;
 
@@ -113,7 +124,10 @@ export class UserService {
       throw new Error("Invalid credentials");
     }
 
-    const token = generateToken({ userId: user.id, email: user.email });
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+    });
 
     const { passwordHash: _, ...safeUser } = user;
 
@@ -223,7 +237,13 @@ export class UserController {
 
   getProfile(req: AuthenticatedRequest, res: Response): void {
     try {
-      const profile = userService.getProfile(req.user!.userId);
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        return sendError(res, "Unauthorized", 401);
+      }
+
+      const profile = userService.getProfile(userId);
 
       if (!profile) {
         return sendError(res, "User not found", 404);
@@ -242,13 +262,24 @@ export const userController = new UserController();
    ROUTES
 ─────────────────────────────────────────────────────────────── */
 
-import { requireAuth } from "../../shared/middlewares/auth";
-
 const userRouter = Router();
 
-userRouter.post("/register", userController.register.bind(userController));
-userRouter.post("/login", userController.login.bind(userController));
-userRouter.post("/demo", userController.demoLogin.bind(userController));
-userRouter.get("/profile", requireAuth, userController.getProfile.bind(userController));
+userRouter.post("/register", (req, res) =>
+  userController.register(req, res)
+);
+
+userRouter.post("/login", (req, res) =>
+  userController.login(req, res)
+);
+
+userRouter.post("/demo", (req, res) =>
+  userController.demoLogin(req, res)
+);
+
+userRouter.get(
+  "/profile",
+  requireAuth,
+  (req, res) => userController.getProfile(req as AuthenticatedRequest, res)
+);
 
 export default userRouter;

@@ -1,4 +1,14 @@
 import { randomUUID } from "crypto";
+import { Router, Request, Response } from "express";
+
+import { productRepository } from "../products/product.repository";
+import { favoriteRepository } from "../favorites/favorites.module";
+import {
+  sendSuccess,
+  sendError,
+  sendServerError,
+} from "../../shared/utils/response";
+import { requireAuth } from "../../shared/middlewares/auth";
 
 /* ───────────────────────────────────────────────────────────────
    TYPES
@@ -21,9 +31,6 @@ interface Notification {
 const db = {
   notifications: new Map<string, Notification>(),
 };
-
-import { productRepository } from "../products/product.repository";
-import { favoriteRepository } from "../favorites/favorites.module";
 
 /* ───────────────────────────────────────────────────────────────
    SERVICE
@@ -65,10 +72,9 @@ export class NotificationService {
     return count;
   }
 
-  // 🔥 CORRIGIDO COMPLETAMENTE
   async checkPriceAlerts(): Promise<void> {
     const favorites = favoriteRepository
-      .findByUser("") // ⚠️ aqui você pode ajustar depois para todos usuários
+      .findByUser("") // ⚠️ depois você pode melhorar isso
       .filter((f) => f.priceAlert !== undefined);
 
     for (const fav of favorites) {
@@ -76,10 +82,7 @@ export class NotificationService {
 
       if (!product || fav.priceAlert === undefined) continue;
 
-      const bestPrice =
-        typeof product.bestPrice === "object"
-          ? Number(product.bestPrice)
-          : product.bestPrice;
+      const bestPrice = Number(product.bestPrice);
 
       if (bestPrice <= fav.priceAlert) {
         const today = new Date().toISOString().split("T")[0];
@@ -128,18 +131,12 @@ export const notificationService = new NotificationService();
    CONTROLLER
 ─────────────────────────────────────────────────────────────── */
 
-import { Response } from "express";
-import { AuthenticatedRequest } from "../../shared/middlewares/auth";
-import {
-  sendSuccess,
-  sendError,
-  sendServerError,
-} from "../../shared/utils/response";
-
 export class NotificationController {
-  getAll(req: AuthenticatedRequest, res: Response): void {
+  getAll(req: Request, res: Response): void {
     try {
-      const userId = req.user!.userId;
+      const userId = (req as any).user?.userId;
+
+      if (!userId) return sendError(res, "Unauthorized", 401);
 
       const notifications =
         notificationService.getUserNotifications(userId);
@@ -156,18 +153,18 @@ export class NotificationController {
     }
   }
 
-  markRead(req: AuthenticatedRequest, res: Response): void {
+  markRead(req: Request, res: Response): void {
     try {
+      const userId = (req as any).user?.userId;
+
+      if (!userId) return sendError(res, "Unauthorized", 401);
+
       const { id } = req.params;
 
-      const success = notificationService.markAsRead(
-        id,
-        req.user!.userId
-      );
+      const success = notificationService.markAsRead(id, userId);
 
       if (!success) {
-        sendError(res, "Notification not found", 404);
-        return;
+        return sendError(res, "Notification not found", 404);
       }
 
       sendSuccess(res, { read: true });
@@ -176,11 +173,13 @@ export class NotificationController {
     }
   }
 
-  markAllRead(req: AuthenticatedRequest, res: Response): void {
+  markAllRead(req: Request, res: Response): void {
     try {
-      const count = notificationService.markAllAsRead(
-        req.user!.userId
-      );
+      const userId = (req as any).user?.userId;
+
+      if (!userId) return sendError(res, "Unauthorized", 401);
+
+      const count = notificationService.markAllAsRead(userId);
 
       sendSuccess(res, { markedRead: count });
     } catch (error) {
@@ -194,9 +193,6 @@ export const notificationController = new NotificationController();
 /* ───────────────────────────────────────────────────────────────
    ROUTES
 ─────────────────────────────────────────────────────────────── */
-
-import { Router } from "express";
-import { requireAuth } from "../../shared/middlewares/auth";
 
 const notificationRouter = Router();
 

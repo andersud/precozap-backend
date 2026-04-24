@@ -4,43 +4,59 @@ import { optionalAuth } from "../../shared/middlewares/auth";
 
 const router = Router();
 
-// 🔥 CREATE PRODUCT
-// POST /api/products
-router.post("/", productController.create.bind(productController));
-
-// 🔍 SEARCH (ANTES DO /:id)
-router.get("/search", productController.search.bind(productController));
-
-// 📦 GET CATEGORIES
-router.get("/categories", productController.getCategories.bind(productController));
-
-// 📦 GET ALL PRODUCTS
-router.get("/", productController.getAll.bind(productController));
-
 /**
- * ⚠️ ROTAS COM :id DEVEM VIR POR ÚLTIMO
+ * 🔥 ROTAS PRINCIPAIS
  */
 
-// 📊 COMPARE PRODUCT
-router.get("/:id/compare", productController.compare.bind(productController));
-
-// 📈 PRICE INSIGHTS
-router.get("/:id/insights", productController.getPriceInsights.bind(productController));
-
-// 💰 ADD PRICE
-router.post(
-  "/:id/prices",
-  productController.addPrice.bind(productController)
+// CREATE PRODUCT
+router.post("/", (req, res) =>
+  productController.create(req, res)
 );
 
-// 🖱️ TRACK CLICK
+// SEARCH (ANTES DO /:id)
+router.get("/search", (req, res) =>
+  productController.search(req, res)
+);
+
+// CATEGORIES
+router.get("/categories", (req, res) =>
+  productController.getCategories(req, res)
+);
+
+// GET ALL
+router.get("/", (req, res) =>
+  productController.getAll(req, res)
+);
+
+/**
+ * ⚠️ ROTAS COM PARAMETROS (:id)
+ */
+
+// COMPARE
+router.get("/:id/compare", (req, res) =>
+  productController.compare(req, res)
+);
+
+// INSIGHTS
+router.get("/:id/insights", (req, res) =>
+  productController.getPriceInsights(req, res)
+);
+
+// ADD PRICE
+router.post("/:id/prices", (req, res) =>
+  productController.addPrice(req, res)
+);
+
+// TRACK CLICK (com auth opcional)
 router.post(
   "/:id/track",
   optionalAuth,
-  productController.trackClick.bind(productController)
+  (req, res) => productController.trackClick(req, res)
 );
 
-// 🔍 GET BY ID (SEMPRE POR ÚLTIMO)
-router.get("/:id", productController.getById.bind(productController));
+// GET BY ID (SEMPRE POR ÚLTIMO)
+router.get("/:id", (req, res) =>
+  productController.getById(req, res)
+);
 
 export default router;

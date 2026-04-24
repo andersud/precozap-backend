@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
 
 import { productRepository } from "../products/product.repository";
-import { AuthenticatedRequest } from "../../shared/middlewares/auth";
 import { sendSuccess, sendError, sendServerError } from "../../shared/utils/response";
+import { requireAuth } from "../../shared/middlewares/auth";
 
 /* ───────────────────────────────────────────────────────────────
    TYPES
@@ -153,9 +153,11 @@ export const favoriteService = new FavoriteService();
 ─────────────────────────────────────────────────────────────── */
 
 export class FavoriteController {
-  async getAll(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async getAll(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.user!.userId;
+      const userId = (req as any).user?.userId;
+
+      if (!userId) return sendError(res, "Unauthorized", 401);
 
       const favorites = await favoriteService.getUserFavorites(userId);
 
@@ -165,9 +167,12 @@ export class FavoriteController {
     }
   }
 
-  async add(req: AuthenticatedRequest, res: Response): Promise<void> {
+  async add(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.user!.userId;
+      const userId = (req as any).user?.userId;
+
+      if (!userId) return sendError(res, "Unauthorized", 401);
+
       const { productId, priceAlert } = req.body;
 
       if (!productId) {
@@ -192,9 +197,12 @@ export class FavoriteController {
     }
   }
 
-  remove(req: AuthenticatedRequest, res: Response): void {
+  remove(req: Request, res: Response): void {
     try {
-      const userId = req.user!.userId;
+      const userId = (req as any).user?.userId;
+
+      if (!userId) return sendError(res, "Unauthorized", 401);
+
       const { productId } = req.params;
 
       const removed = favoriteService.removeFavorite(userId, productId);
@@ -209,9 +217,12 @@ export class FavoriteController {
     }
   }
 
-  setPriceAlert(req: AuthenticatedRequest, res: Response): void {
+  setPriceAlert(req: Request, res: Response): void {
     try {
-      const userId = req.user!.userId;
+      const userId = (req as any).user?.userId;
+
+      if (!userId) return sendError(res, "Unauthorized", 401);
+
       const { productId } = req.params;
       const { priceAlert } = req.body;
 
@@ -241,8 +252,6 @@ export const favoriteController = new FavoriteController();
 /* ───────────────────────────────────────────────────────────────
    ROUTES
 ─────────────────────────────────────────────────────────────── */
-
-import { requireAuth } from "../../shared/middlewares/auth";
 
 const favoriteRouter = Router();
 

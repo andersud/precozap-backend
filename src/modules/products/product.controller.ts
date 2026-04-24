@@ -9,22 +9,24 @@ import {
 import { AuthenticatedRequest } from "../../shared/middlewares/auth";
 
 export class ProductController {
-
   // 🔧 PARSER SEGURO DE NÚMEROS
-  private parseNumber(value: any): number | undefined {
-    if (value === undefined) return undefined;
+  private parseNumber(value: unknown): number | undefined {
+    if (value === undefined || value === null) return undefined;
     const num = Number(value);
     return isNaN(num) ? undefined : num;
   }
 
-  // 🔧 BUILDER DE FILTROS
-  private buildFilters(query: any) {
+  // 🔧 BUILDER DE FILTROS TIPADO
+  private buildFilters(query: Request["query"]) {
     return {
-      category: typeof query.category === "string" ? query.category : undefined,
+      category:
+        typeof query.category === "string" ? query.category : undefined,
       minPrice: this.parseNumber(query.minPrice),
       maxPrice: this.parseNumber(query.maxPrice),
       marketplace:
-        typeof query.marketplace === "string" ? query.marketplace : undefined,
+        typeof query.marketplace === "string"
+          ? query.marketplace
+          : undefined,
       sort: typeof query.sort === "string" ? query.sort : undefined,
     };
   }
@@ -79,14 +81,13 @@ export class ProductController {
     }
   }
 
-  // 📦 GET ALL (COM SEARCH + SORT)
+  // 📦 GET ALL
   async getAll(req: Request, res: Response): Promise<void> {
     try {
       const { search } = req.query;
 
       const filters = this.buildFilters(req.query);
 
-      // 🔥 se tem busca → usa search
       if (search && typeof search === "string" && search.trim().length >= 2) {
         const products = await productService.search(
           search.trim(),
