@@ -4,7 +4,7 @@
   "description": "PreçoZap Backend API",
   "main": "dist/infra/http/server.js",
   "engines": {
-    "node": ">=18"
+    "node": ">=18.0.0"
   },
   "_moduleAliases": {
     "@modules": "dist/modules",

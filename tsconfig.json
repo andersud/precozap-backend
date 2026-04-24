@@ -28,7 +28,7 @@
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
-} */
+} 
 {
   "compilerOptions": {
     "target": "ES2022",
@@ -50,6 +50,33 @@
     "resolveJsonModule": true,
     "moduleResolution": "node"
   },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+} */
+
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+
+    "lib": ["ES2022"],
+
+    "outDir": "dist",
+    "rootDir": "src",
+
+    // ❌ REMOVE baseUrl (evita erro TS5101)
+    // ❌ REMOVE ignoreDeprecations (não é necessário)
+
+    "strict": true,
+
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+
+    "moduleResolution": "node"
+  },
+
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }
