@@ -1,10 +1,11 @@
+// package.json
 {
   "name": "precozap-backend",
   "version": "1.0.0",
   "description": "PreçoZap Backend API",
   "main": "dist/infra/http/server.js",
   "engines": {
-    "node": ">=18.0.0"
+    "node": "20.x"
   },
   "_moduleAliases": {
     "@modules": "dist/modules",
@@ -13,7 +14,7 @@
   },
   "scripts": {
     "dev": "tsx watch -r module-alias/register src/infra/http/server.ts",
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "node -r module-alias/register dist/infra/http/server.js",
     "start:prod": "node -r module-alias/register dist/infra/http/server.js",
     "lint": "eslint src --ext .ts"
