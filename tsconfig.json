@@ -1,7 +1,7 @@
-/*{
+{
   "compilerOptions": {
     "target": "ES2022",
-    "module": "commonjs",
+    "module": "node16",
     "lib": ["ES2022"],
 
     "outDir": "dist",
@@ -14,28 +14,9 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
 
-    "moduleResolution": "node"
+    "moduleResolution": "node16"
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
-} */
+} 
 
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "lib": ["ES2022"],
-
-    "outDir": "dist",
-    "rootDir": "src",
-
-    "strict": true,
-
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-
-    "moduleResolution": "NodeNext"
-  },
-  "include": ["src"]
-}
