@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { productService } from "./product.service";
+import { ProductFilters } from "./product.repository";
 import {
   sendSuccess,
   sendNotFound,
@@ -17,7 +18,13 @@ export class ProductController {
   }
 
   // 🔧 BUILDER DE FILTROS TIPADO
-  private buildFilters(query: Request["query"]) {
+  private buildFilters(query: Request["query"]): ProductFilters {
+    const sort =
+      typeof query.sort === "string" &&
+      ["price_asc", "price_desc", "newest"].includes(query.sort)
+        ? (query.sort as ProductFilters["sort"])
+        : undefined;
+
     return {
       category:
         typeof query.category === "string" ? query.category : undefined,
@@ -27,7 +34,7 @@ export class ProductController {
         typeof query.marketplace === "string"
           ? query.marketplace
           : undefined,
-      sort: typeof query.sort === "string" ? query.sort : undefined,
+      sort,
     };
   }
 
