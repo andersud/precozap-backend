@@ -68,7 +68,7 @@ export class ProductService {
     return productRepository.findAll(filters);
   }
 
-  // 🔍 GET BY ID (COM RELAÇÕES)
+  // 🔍 GET BY ID
   async findById(id: string) {
     const cacheKey = `product:${id}`;
 
@@ -89,24 +89,37 @@ export class ProductService {
     return productRepository.getCategories();
   }
 
-  // 💰 ADD PRICE (🔥 NOVO PADRÃO)
+  // 💰 ADD PRICE (🔥 CORRIGIDO)
   async addPrice(data: AddPriceDTO) {
-    return productRepository.addPrice(data);
+    const result = await productRepository.addPrice(data);
+
+    // 🔥 se não tiver delete no cache, apenas ignora
+    if ((cacheService as any).delete) {
+      (cacheService as any).delete(`product:${data.productId}`);
+    }
+
+    return result;
   }
 
-  // 📊 COMPARE PRODUCT
+  // 📊 COMPARE
   async compareProduct(id: string): Promise<ComparisonResult | null> {
     const product = await this.findById(id);
 
     if (!product || !product.prices?.length) return null;
 
-    const sorted = [...product.prices].sort((a, b) => a.price - b.price);
+    const sorted = [...product.prices].sort(
+      (a: any, b: any) => Number(a.price) - Number(b.price)
+    );
 
     const bestDeal = sorted[0];
     const worstDeal = sorted[sorted.length - 1];
 
-    const savings = worstDeal.price - bestDeal.price;
-    const savingsPercent = Math.round((savings / worstDeal.price) * 100);
+    const bestPrice = Number(bestDeal.price);
+    const worstPrice = Number(worstDeal.price);
+
+    const savings = worstPrice - bestPrice;
+    const savingsPercent =
+      worstPrice > 0 ? Math.round((savings / worstPrice) * 100) : 0;
 
     const isFakePromotion = this.detectFakePromotion(product);
 
@@ -127,13 +140,15 @@ export class ProductService {
     };
   }
 
-  // 📈 PRICE INSIGHTS (🔥 MELHORADO)
+  // 📈 INSIGHTS
   async getPriceInsights(id: string): Promise<PriceInsight | null> {
     const product = await this.findById(id);
 
     if (!product || !product.priceHistory?.length) return null;
 
-    const prices = product.priceHistory.map((h: any) => h.price);
+    const prices = product.priceHistory.map((h: any) =>
+      Number(h.price)
+    );
 
     const historicalMin = Math.min(...prices);
     const historicalMax = Math.max(...prices);
@@ -141,14 +156,13 @@ export class ProductService {
     const historicalAvg =
       prices.reduce((a: number, b: number) => a + b, 0) / prices.length;
 
-    const currentBest = product.bestPrice;
+    const currentBest = Number(product.bestPrice);
 
     const isGoodDeal = currentBest <= historicalAvg * 0.95;
 
-    // 🔥 DETECTAR TENDÊNCIA
     let priceTrend: "falling" | "rising" | "stable" = "stable";
 
-    if (prices.length >= 3) {
+    if (prices.length >= 2) {
       const last = prices[prices.length - 1];
       const prev = prices[prices.length - 2];
 
@@ -171,18 +185,18 @@ export class ProductService {
     };
   }
 
-  // 🧠 DETECT FAKE PROMOTION
+  // 🧠 FAKE PROMO
   private detectFakePromotion(product: any): boolean {
     if (!product.priceHistory?.length) return false;
 
     const maxHistorical = Math.max(
-      ...product.priceHistory.map((h: any) => h.price)
+      ...product.priceHistory.map((h: any) => Number(h.price))
     );
 
     return product.prices.some(
       (p: any) =>
         p.originalPrice &&
-        p.originalPrice > maxHistorical * 1.5 &&
+        Number(p.originalPrice) > maxHistorical * 1.5 &&
         p.discount &&
         p.discount > 40
     );
