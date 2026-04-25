@@ -29,10 +29,19 @@ export interface PriceInsight {
 }
 
 export class ProductService {
-  // 🔥 CREATE
+  // 🔥 CREATE (COM PROTEÇÃO DE DUPLICADOS)
   async create(data: any) {
     if (!data.name) {
       throw new Error("Product name is required");
+    }
+
+    const normalizedName = data.name.trim().toLowerCase();
+
+    // 🔥 evita duplicados (MVP)
+    const existing = await productRepository.search(normalizedName);
+
+    if (existing.length > 0) {
+      return existing[0];
     }
 
     return productRepository.save({
@@ -46,7 +55,7 @@ export class ProductService {
     });
   }
 
-  // 🔍 SEARCH
+  // 🔍 SEARCH (COM CACHE)
   async search(query: string, filters?: ProductFilters) {
     const cacheKey = `search:${query}:${JSON.stringify(filters)}`;
 
@@ -68,7 +77,7 @@ export class ProductService {
     return productRepository.findAll(filters);
   }
 
-  // 🔍 GET BY ID
+  // 🔍 GET BY ID (COM CACHE)
   async findById(id: string) {
     const cacheKey = `product:${id}`;
 
@@ -89,12 +98,12 @@ export class ProductService {
     return productRepository.getCategories();
   }
 
-  // 💰 ADD PRICE (🔥 CORRIGIDO)
+  // 💰 ADD PRICE (COM INVALIDAÇÃO DE CACHE SEGURA)
   async addPrice(data: AddPriceDTO) {
     const result = await productRepository.addPrice(data);
 
-    // 🔥 se não tiver delete no cache, apenas ignora
-    if ((cacheService as any).delete) {
+    // 🔥 invalida cache do produto
+    if (typeof (cacheService as any).delete === "function") {
       (cacheService as any).delete(`product:${data.productId}`);
     }
 
@@ -118,12 +127,15 @@ export class ProductService {
     const worstPrice = Number(worstDeal.price);
 
     const savings = worstPrice - bestPrice;
+
     const savingsPercent =
       worstPrice > 0 ? Math.round((savings / worstPrice) * 100) : 0;
 
     const isFakePromotion = this.detectFakePromotion(product);
 
-    let recommendation = `Compre no ${bestDeal.marketplace} e economize R$ ${savings.toFixed(2)}`;
+    let recommendation = `Compre no ${bestDeal.marketplace} e economize R$ ${savings.toFixed(
+      2
+    )}`;
 
     if (isFakePromotion) {
       recommendation += "\n⚠️ Possível promoção falsa detectada.";
@@ -146,7 +158,7 @@ export class ProductService {
 
     if (!product || !product.priceHistory?.length) return null;
 
-    const prices = product.priceHistory.map((h: any) =>
+    const prices: number[] = product.priceHistory.map((h: any) =>
       Number(h.price)
     );
 
@@ -185,7 +197,7 @@ export class ProductService {
     };
   }
 
-  // 🧠 FAKE PROMO
+  // 🧠 DETECTA PROMOÇÃO FALSA
   private detectFakePromotion(product: any): boolean {
     if (!product.priceHistory?.length) return false;
 
