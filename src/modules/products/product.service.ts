@@ -29,23 +29,35 @@ export interface PriceInsight {
 }
 
 export class ProductService {
-  // 🔥 CREATE (COM PROTEÇÃO DE DUPLICADOS)
+  // 🔥 GERAR SLUG PROFISSIONAL
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/[^\w-]+/g, "");
+  }
+
+  // 🔥 CREATE (ANTI-DUPLICAÇÃO REAL)
   async create(data: any) {
     if (!data.name) {
       throw new Error("Product name is required");
     }
 
-    const normalizedName = data.name.trim().toLowerCase();
+    const name = data.name.trim();
+    const slug = this.generateSlug(name);
 
-    // 🔥 evita duplicados (MVP)
-    const existing = await productRepository.search(normalizedName);
+    // 🔥 VERIFICA PELO SLUG (CORRETO)
+    const existing = await productRepository.findBySlug(slug);
 
-    if (existing.length > 0) {
-      return existing[0];
+    if (existing) {
+      return existing; // não duplica
     }
 
     return productRepository.save({
-      name: data.name,
+      name,
+      slug,
       category: data.category || "general",
       image: data.image ?? null,
       description: data.description ?? "",
@@ -98,11 +110,10 @@ export class ProductService {
     return productRepository.getCategories();
   }
 
-  // 💰 ADD PRICE (COM INVALIDAÇÃO DE CACHE SEGURA)
+  // 💰 ADD PRICE (COM INVALIDAÇÃO DE CACHE)
   async addPrice(data: AddPriceDTO) {
     const result = await productRepository.addPrice(data);
 
-    // 🔥 invalida cache do produto
     if (typeof (cacheService as any).delete === "function") {
       (cacheService as any).delete(`product:${data.productId}`);
     }

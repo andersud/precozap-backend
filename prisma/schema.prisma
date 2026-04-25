@@ -7,11 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ───────────────────────── PRODUCT ─────────────────────────
-
 model Product {
   id           String   @id @default(uuid())
   name         String
+  slug         String   @unique // 🔥 obrigatório
+
   category     String
   description  String?
   image        String?
@@ -31,8 +31,6 @@ model Product {
   @@index([bestPrice])
   @@index([createdAt])
 }
-
-// ───────────────────── MARKETPLACE PRICE ─────────────────────
 
 model MarketplacePrice {
   id            String   @id @default(uuid())
@@ -57,10 +55,9 @@ model MarketplacePrice {
   @@index([marketplace])
   @@index([price])
 
-  @@unique([productId, marketplace])
+  // 🔥 permite múltiplos preços
+  @@unique([productId, marketplace, price])
 }
-
-// ───────────────────── PRICE HISTORY ─────────────────────
 
 model PriceHistory {
   id          String   @id @default(uuid())

@@ -1,6 +1,15 @@
 import { prisma } from "../../shared/database/prisma";
 import { Prisma } from "@prisma/client";
 
+// 🔥 helper
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-");
+}
+
 export interface ProductFilters {
   category?: string;
   minPrice?: number;
@@ -58,7 +67,7 @@ export const productRepository = {
     if (filters?.marketplace?.trim()) {
       where.prices = {
         some: {
-          marketplace: filters.marketplace.trim(),
+          marketplace: filters.marketplace.trim().toLowerCase(),
         },
       };
     }
@@ -97,14 +106,14 @@ export const productRepository = {
           orderBy: { price: "asc" },
         },
         priceHistory: {
-          orderBy: { recordedAt: "desc" }, // ✅ CORREÇÃO FINAL
+          orderBy: { recordedAt: "desc" },
           take: 30,
         },
       },
     });
   },
 
-  // 🔍 POR ID SIMPLES
+  // 🔍 POR ID
   async findById(id: string) {
     if (!id) return null;
 
@@ -145,15 +154,25 @@ export const productRepository = {
     });
   },
 
-  // 🔥 CREATE
+  // 🔥 CREATE (COM SLUG E PROTEÇÃO REAL)
   async save(data: CreateProductDTO) {
     if (!data.name || !data.category) {
       throw new Error("name and category are required");
     }
 
+    const slug = slugify(data.name);
+
+    // 🔥 evita duplicado REAL
+    const existing = await prisma.product.findUnique({
+      where: { slug },
+    });
+
+    if (existing) return existing;
+
     return prisma.product.create({
       data: {
         name: data.name.trim(),
+        slug,
         category: data.category.trim(),
         image: data.image ?? null,
         description: data.description?.trim() ?? "",
@@ -174,7 +193,7 @@ export const productRepository = {
     return categories.map((c) => c.category);
   },
 
-  // 💰 ADD PRICE (PROFISSIONAL)
+  // 💰 ADD PRICE (NÍVEL PRODUÇÃO)
   async addPrice(data: AddPriceDTO) {
     const {
       productId,
@@ -198,7 +217,7 @@ export const productRepository = {
       throw new Error("price must be greater than 0");
     }
 
-    const cleanMarketplace = marketplace.trim();
+    const cleanMarketplace = marketplace.trim().toLowerCase();
 
     const cleanUrl =
       typeof url === "string" && url.startsWith("http") ? url : null;
@@ -212,17 +231,17 @@ export const productRepository = {
     }
 
     return prisma.$transaction(async (tx) => {
-      // 🔥 evita duplicado
-      const existing = await tx.marketplacePrice.findFirst({
-        where: {
-          productId,
-          marketplace: cleanMarketplace,
-          price: new Prisma.Decimal(parsedPrice),
-        },
-      });
+      // 🔥 evita duplicação por URL (melhor critério)
+      if (cleanUrl) {
+        const existing = await tx.marketplacePrice.findFirst({
+          where: {
+            productId,
+            marketplace: cleanMarketplace,
+            url: cleanUrl,
+          },
+        });
 
-      if (existing) {
-        return existing;
+        if (existing) return existing;
       }
 
       const newPrice = await tx.marketplacePrice.create({
@@ -239,34 +258,30 @@ export const productRepository = {
         },
       });
 
-      // 🔥 histórico correto
+      // histórico
       await tx.priceHistory.create({
         data: {
           productId,
           price: new Prisma.Decimal(parsedPrice),
           marketplace: cleanMarketplace,
-          recordedAt: new Date(), // ✅ IMPORTANTE
+          recordedAt: new Date(),
         },
       });
 
-      // 🔥 recalcula melhor preço
+      // recalcula melhor preço
       const prices = await tx.marketplacePrice.findMany({
         where: { productId },
         select: { price: true },
       });
 
-      if (prices.length > 0) {
-        const bestPrice = Math.min(
-          ...prices.map((p) => Number(p.price))
-        );
+      const bestPrice = Math.min(...prices.map((p) => Number(p.price)));
 
-        await tx.product.update({
-          where: { id: productId },
-          data: {
-            bestPrice: new Prisma.Decimal(bestPrice),
-          },
-        });
-      }
+      await tx.product.update({
+        where: { id: productId },
+        data: {
+          bestPrice: new Prisma.Decimal(bestPrice),
+        },
+      });
 
       return newPrice;
     });
